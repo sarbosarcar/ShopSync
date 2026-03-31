@@ -42,11 +42,14 @@ cd backend
 echo "FRONTEND_URL=http://localhost:5173" > .env
 
 # Create and activate the virtual environment
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate  # On Windows use: .venv\Scripts\activate
 
 # Install the required dependencies
 pip install -r requirements.txt
+
+# Ingest the products data
+python3 ingest.py
 
 # Run the FastAPI server
 uvicorn main:app --reload
