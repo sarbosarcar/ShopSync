@@ -42,3 +42,11 @@ async def recommend(
         "reply": f"Based on your request '{req.message}', here are the top matches from our catalog.",
         "products": recommended
     }
+
+@app.get("/api/product/{id}")
+async def get_product(
+    id: str
+):
+    product = df[df["product_id"] == id].to_dict(orient='records')[0]
+    return product
+    
