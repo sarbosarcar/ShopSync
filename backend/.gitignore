@@ -1,3 +1,5 @@
 data/products.index
 data/products.json
 .env
+__pycache__/
+.venv/
