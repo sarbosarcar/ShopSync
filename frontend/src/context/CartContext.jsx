@@ -1,9 +1,18 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+
+const CART_STORAGE_KEY = 'shopsync_cart';
 
 const CartContext = createContext();
 
 export function CartProvider({ children }) {
-  const [cart, setCart] = useState([]);
+const [cart, setCart] = useState(() => {
+  const saved = localStorage.getItem(CART_STORAGE_KEY);
+  return saved ? JSON.parse(saved) : [];
+});
+
+useEffect(() => {
+  localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+}, [cart]);
 
   const addToCart = (product) => {
     setCart((prev) => {
