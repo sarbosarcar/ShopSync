@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import Lenis from '@studio-freight/lenis';
 import { ThemeProvider } from './context/ThemeContext';
 import { CartProvider } from './context/CartContext';
+import { AuthProvider } from './context/AuthContext';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
 import Shop from './pages/Shop';
@@ -31,7 +32,8 @@ function App() {
 
   return (
     <ThemeProvider>
-      <CartProvider>
+      <AuthProvider>
+        <CartProvider>
         <Router>
           <Layout>
             <Routes>
@@ -42,7 +44,8 @@ function App() {
             </Routes>
           </Layout>
         </Router>
-      </CartProvider>
+</CartProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }
