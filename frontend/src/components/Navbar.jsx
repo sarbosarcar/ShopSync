@@ -9,19 +9,30 @@ import ChatUI from './ChatUI';
 export default function Navbar() {
   const { isDark, toggleTheme } = useTheme();
   const { cartCount } = useCart();
-  const { user, login, logout, isAuthenticated } = useAuth();
+  const { user, login, register, logout, isAuthenticated } = useAuth();
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
-  const handleLogin = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    login(email, password);
-    setIsLoginOpen(false);
-    setEmail('');
-    setPassword('');
+    setError('');
+    try {
+      if (isRegister) {
+        await register(email, password);
+      } else {
+        await login(email, password);
+      }
+      setIsAuthOpen(false);
+      setEmail('');
+      setPassword('');
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (
@@ -57,11 +68,11 @@ export default function Navbar() {
               <button onClick={logout} className="p-2 border-2 border-[var(--border-color)] hover:border-[var(--text-primary)] transition-all" aria-label="Logout">
                 <LogOut className="w-5 h-5" />
               </button>
-            ) : (
-              <button onClick={() => setIsLoginOpen(true)} className="p-2 border-2 border-[var(--border-color)] hover:border-[var(--text-primary)] transition-all" aria-label="Login">
-                <User className="w-5 h-5" />
-              </button>
-            )}
+) : (
+  <button onClick={() => { setIsAuthOpen(true); setIsRegister(false); }} className="p-2 border-2 border-[var(--border-color)] hover:border-[var(--text-primary)] transition-all" aria-label="Login">
+    <User className="w-5 h-5" />
+  </button>
+)}
             <Link to="/cart" className="relative p-2 border-2 border-transparent hover:border-[var(--text-primary)] transition-all">
               <ShoppingCart className="w-6 h-6" />
               {cartCount > 0 && (
@@ -95,43 +106,47 @@ export default function Navbar() {
 
 <ChatUI isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
 
-  {isLoginOpen && (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setIsLoginOpen(false)}>
-      <div className="bg-[var(--bg-primary)] border-2 border-[var(--border-color)] p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold uppercase tracking-widest">Login</h2>
-          <button onClick={() => setIsLoginOpen(false)} className="p-2 hover:bg-[var(--bg-secondary)]">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold uppercase tracking-widest mb-2">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-3 border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] focus:border-[var(--text-primary)] outline-none"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold uppercase tracking-widest mb-2">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3 border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] focus:border-[var(--text-primary)] outline-none"
-              required
-            />
-          </div>
-          <button type="submit" className="w-full py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] font-bold uppercase tracking-widest hover:opacity-90">
-            Sign In
-          </button>
-        </form>
+{isAuthOpen && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setIsAuthOpen(false)}>
+    <div className="bg-[var(--bg-primary)] border-2 border-[var(--border-color)] p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold uppercase tracking-widest">{isRegister ? 'Register' : 'Login'}</h2>
+        <button onClick={() => setIsAuthOpen(false)} className="p-2 hover:bg-[var(--bg-secondary)]">
+          <X className="w-5 h-5" />
+        </button>
       </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <p className="text-red-500 text-sm">{error}</p>}
+        <div>
+          <label className="block text-sm font-bold uppercase tracking-widest mb-2">Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-3 border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] focus:border-[var(--text-primary)] outline-none"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-bold uppercase tracking-widest mb-2">Password</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-3 border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] focus:border-[var(--text-primary)] outline-none"
+            required
+          />
+        </div>
+        <button type="submit" className="w-full py-3 bg-[var(--text-primary)] text-[var(--bg-primary)] font-bold uppercase tracking-widest hover:opacity-90">
+          {isRegister ? 'Sign Up' : 'Sign In'}
+        </button>
+        <button type="button" onClick={() => setIsRegister(!isRegister)} className="w-full text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+          {isRegister ? 'Already have an account? Sign In' : "Don't have an account? Register"}
+        </button>
+      </form>
     </div>
-  )}
+  </div>
+)}
   </>
   );
 }
