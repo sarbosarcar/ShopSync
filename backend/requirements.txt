@@ -7,3 +7,4 @@ pandas
 bcrypt
 PyJWT
 python-dotenv
+mistralai
