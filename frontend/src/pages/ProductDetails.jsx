@@ -19,7 +19,15 @@ export default function ProductDetails() {
           throw new Error('Product not found');
         }
         const data = await response.json();
-        setProduct(data);
+        const mapped = {
+          id: data.product_id,
+          name: data.name,
+          category: data.main_category || 'Uncategorized',
+          price: (data.discount_price || data.actual_price || '0').replace(/₹|,/g, ''),
+          description: data.sub_category || '',
+          image: data.image || 'https://via.placeholder.com/300?text=ShopSync'
+        };
+        setProduct(mapped);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -58,17 +66,18 @@ export default function ProductDetails() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-20">
         <div className="aspect-square bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] overflow-hidden">
           <img
-            src={product.image}
+            src={product.image || 'https://via.placeholder.com/300?text=ShopSync'}
             alt={product.name}
             className="w-full h-full object-cover"
+            onError={(e) => { e.target.src = 'https://via.placeholder.com/300?text=ShopSync'; e.target.onerror = null; }}
           />
         </div>
 
         <div className="flex flex-col justify-center space-y-8">
           <div>
-            <p className="text-sm uppercase tracking-[0.2em] text-[var(--text-secondary)] mb-2">{product.main_category}</p>
+            <p className="text-sm uppercase tracking-[0.2em] text-[var(--text-secondary)] mb-2">{product.category}</p>
             <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tight mb-4">{product.name}</h1>
-            <p className="text-2xl font-mono">{product.discount_price}</p>
+            <p className="text-2xl font-mono">₹{product.price}</p>
           </div>
 
           <div className="w-16 h-1 bg-[var(--text-primary)]" />

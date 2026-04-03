@@ -77,6 +77,10 @@ async def recommend(
         "products": recommended
     }
 
+@app.get("/api/products")
+async def get_products():
+    return df.to_dict(orient='records')
+
 @app.get("/api/product/{id}")
 async def get_product(
     id: str

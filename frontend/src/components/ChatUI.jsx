@@ -109,10 +109,10 @@ export default function ChatUI({ isOpen, onClose }) {
       <div key={product.product_id} className="w-44 sm:w-52 border-2 border-[var(--border-color)] bg-[var(--bg-primary)] group hover:border-[var(--text-primary)] transition-colors text-left overflow-hidden">
         <div className="aspect-square relative overflow-hidden bg-[var(--bg-secondary)] border-b-2 border-[var(--border-color)]">
 <img
-              src={product.image}
+              src={product.image || 'https://via.placeholder.com/300?text=ShopSync'}
               alt={product.name}
               className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
-              onError={(e) => { e.target.style.display = 'none'; }}
+              onError={(e) => { e.target.src = 'https://via.placeholder.com/300?text=ShopSync'; e.target.onerror = null; }}
             />
         </div>
         <div className="p-3 space-y-2">

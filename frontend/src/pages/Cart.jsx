@@ -29,7 +29,12 @@ export default function Cart() {
           {cart.map(item => (
             <div key={item.id} className="flex flex-col sm:flex-row gap-6 border-2 border-[var(--border-color)] p-4 bg-[var(--bg-primary)] group hover:border-[var(--text-primary)] transition-colors">
               <div className="w-full sm:w-32 h-32 shrink-0 bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] overflow-hidden">
-                <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                <img 
+                  src={item.image || 'https://via.placeholder.com/300?text=ShopSync'} 
+                  alt={item.name} 
+                  className="w-full h-full object-cover" 
+                  onError={(e) => { e.target.src = 'https://via.placeholder.com/300?text=ShopSync'; e.target.onerror = null; }}
+                />
               </div>
               <div className="flex-1 flex flex-col justify-between">
                 <div>
@@ -39,7 +44,7 @@ export default function Cart() {
                       <Trash2 size={18} />
                     </button>
                   </div>
-                  <p className="text-sm font-mono text-[var(--text-secondary)] mt-1">${item.price}</p>
+                  <p className="text-sm font-mono text-[var(--text-secondary)] mt-1">₹{item.price}</p>
                 </div>
                 
                 <div className="flex items-center justify-between sm:justify-start gap-4 mt-6">
@@ -54,7 +59,7 @@ export default function Cart() {
                       className="w-10 h-10 flex items-center justify-center hover:bg-[var(--text-primary)] hover:text-[var(--bg-primary)] font-mono transition-colors"
                     >+</button>
                   </div>
-                  <p className="font-mono font-bold ml-auto sm:ml-4 text-lg">${item.price * item.quantity}</p>
+                  <p className="font-mono font-bold ml-auto sm:ml-4 text-lg">₹{(parseFloat(item.price) || 0) * item.quantity}</p>
                 </div>
               </div>
             </div>
@@ -67,7 +72,7 @@ export default function Cart() {
           <div className="space-y-4 mb-8">
              <div className="flex justify-between text-[var(--text-secondary)]">
                <span className="uppercase tracking-wider text-sm font-bold">Subtotal</span>
-               <span className="font-mono">${cartTotal}</span>
+               <span className="font-mono">₹{cartTotal}</span>
              </div>
              <div className="flex justify-between text-[var(--text-secondary)]">
                <span className="uppercase tracking-wider text-sm font-bold">Shipping</span>
@@ -75,7 +80,7 @@ export default function Cart() {
              </div>
              <div className="border-t-2 border-[var(--border-color)] pt-4 flex justify-between">
                <span className="uppercase tracking-widest font-black">Total</span>
-               <span className="font-mono font-bold text-xl">${cartTotal}</span>
+               <span className="font-mono font-bold text-xl">₹{cartTotal}</span>
              </div>
           </div>
           
