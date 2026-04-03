@@ -7,4 +7,4 @@ pandas
 bcrypt
 PyJWT
 python-dotenv
-mistralai
+mistralai==1.5.1

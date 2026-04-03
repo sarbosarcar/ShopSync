@@ -29,6 +29,7 @@ app.add_middleware(
 model = SentenceTransformer('all-MiniLM-L6-v2')
 index = faiss.read_index('data/products.index')
 df = pd.read_json('data/products.json')
+df = df.replace({np.nan: None})
 
 SECRET_KEY = os.getenv("JWT_SECRET", "shopsync-secret-key")
 ALGORITHM = "HS256"
