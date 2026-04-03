@@ -79,9 +79,11 @@ export default function Cart() {
              </div>
           </div>
           
-          <Button variant="primary" className="w-full py-4 text-sm font-bold tracking-widest uppercase">
-            Proceed to Checkout
-          </Button>
+          <Link to="/checkout" className="block w-full">
+            <Button variant="primary" className="w-full py-4 text-sm font-bold tracking-widest uppercase">
+              Proceed to Checkout
+            </Button>
+          </Link>
         </div>
       </div>
     </div>
