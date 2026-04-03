@@ -38,8 +38,9 @@ Open a new terminal window/tab, configure the Python virtual environment, create
 ```bash
 cd backend
 
-# Set up the required environment variable
+# Set up the required environment variable (get MISTRAL_API_KEY from https://console.mistral.ai/)
 echo "FRONTEND_URL=http://localhost:5173" > .env
+echo "MISTRAL_API_KEY=your_api_key_here" >> .env
 
 # Create and activate the virtual environment
 python3 -m venv .venv

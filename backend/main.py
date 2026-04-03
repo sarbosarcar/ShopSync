@@ -11,6 +11,7 @@ import dotenv
 import os
 import jwt
 import datetime
+from mistralai import Mistral
 
 dotenv.load_dotenv()
 
@@ -59,6 +60,8 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
 
 class ChatRequest(BaseModel):
     message: str
+    history: list = []
+
 
 @app.post("/api/recommend")
 async def recommend(
@@ -112,3 +115,69 @@ async def login(req: AuthRequest):
 @app.get("/api/auth/me")
 async def me(email: str = Depends(verify_token)):
     return {"email": email}
+
+
+mistral_client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
+
+
+@app.post("/api/recommend/llm")
+async def recommend_llm(req: ChatRequest, k: int = 5):
+    conversation = []
+    if req.history:
+        for msg in req.history:
+            conversation.append(
+                {"role": msg.get("role", "user"), "content": msg.get("content", "")}
+            )
+    conversation.append({"role": "user", "content": req.message})
+
+    query_prompt = """Given the following conversation, extract the most relevant search query for finding products.
+Return ONLY the search query, nothing else. Make it concise (3-5 words) but descriptive.
+
+Conversation:
+"""
+    for msg in conversation:
+        query_prompt += f"{msg['role']}: {msg['content']}\n"
+    query_prompt += "\nSearch query:"
+
+    query_response = mistral_client.chat.complete(
+        model="mistral-small-latest",
+        messages=[{"role": "user", "content": query_prompt}],
+    )
+    search_query = query_response.choices[0].message.content.strip()
+
+    query_vector = model.encode([search_query])
+    distances, indices = index.search(np.array(query_vector, dtype=np.float32), k)
+    products = df.iloc[indices[0]].to_dict(orient="records")
+
+    products_text = "\n".join(
+        [
+            f"- {p['name']}: {p.get('description', '')} ({p.get('discount_price') or p.get('actual_price', 'N/A')})"
+            for p in products
+        ]
+    )
+
+    response_prompt = f"""You are a helpful shopping assistant. Based on the user's request and chat history, recommend products from the catalog below.
+
+Chat History:
+"""
+    for msg in conversation:
+        response_prompt += f"{msg['role']}: {msg['content']}\n"
+
+    response_prompt += f"""
+User's latest request: {req.message}
+
+Available products:
+{products_text}
+
+Provide a personalized recommendation (2-3 sentences) mentioning specific products from the list above."""
+
+    final_response = mistral_client.chat.complete(
+        model="mistral-small-latest",
+        messages=[{"role": "user", "content": response_prompt}],
+    )
+
+    return {
+        "reply": final_response.choices[0].message.content,
+        "products": products,
+        "search_query": search_query,
+    }

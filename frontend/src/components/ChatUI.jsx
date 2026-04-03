@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Search, X, Bot, User, ArrowRight, Loader } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
 import Button from './Button';
 import { AI_RESPONSES, PRODUCTS } from '../data/mock';
 
@@ -35,15 +36,19 @@ export default function ChatUI({ isOpen, onClose }) {
     const userMsg = typeof text === 'string' ? text : input;
     if (!userMsg.trim()) return;
 
+    const history = messages
+      .filter(m => m.text)
+      .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
+
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setInput('');
     setIsTyping(true);
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/recommend`, {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/recommend/llm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg })
+        body: JSON.stringify({ message: userMsg, history })
       });
 
       if (!res.ok) throw new Error("API Network request failed");
@@ -92,32 +97,37 @@ export default function ChatUI({ isOpen, onClose }) {
             <div className={`w-10 h-10 flex items-center justify-center shrink-0 border-2 ${msg.role === 'user' ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-primary)]'}`}>
               {msg.role === 'user' ? <User size={20} /> : <Bot size={20} />}
             </div>
-            <div className={`max-w-[90%] md:max-w-[70%] space-y-4 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
-              <div className={`inline-block p-4 border-2 font-medium ${msg.role === 'user' ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]' : 'bg-[var(--bg-primary)] border-[var(--border-color)]'}`}>
-                {msg.text}
-              </div>
+<div className={`max-w-[90%] md:max-w-[70%] space-y-2 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
+  <div className={`inline-block p-3 px-4 rounded-lg text-sm leading-relaxed ${msg.role === 'user' ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]' : 'bg-[var(--bg-secondary)] border border-[var(--border-color)]'}`}>
+    {msg.role === 'user' ? msg.text : <ReactMarkdown>{msg.text}</ReactMarkdown>}
+  </div>
 
-              {/* Product Recommendations */}
-              {msg.products && msg.products.length > 0 && (
-                <div className={`flex flex-wrap gap-4 mt-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  {msg.products.map(product => (
-                    <div key={product.product_id} className="w-48 sm:w-56 border-2 border-[var(--border-color)] bg-[var(--bg-primary)] group hover:border-[var(--text-primary)] transition-colors text-left">
-                      <div className="aspect-square relative overflow-hidden bg-[var(--bg-secondary)] border-b-2 border-[var(--border-color)]">
-                        <img src={product.image} alt={product.name} className="object-cover w-full h-full grayscale group-hover:grayscale-0 transition-all duration-500" />
-                      </div>
-                      <div className="p-4">
-                        <h4 className="text-sm font-bold truncate mb-1 uppercase tracking-widest">{product.name}</h4>
-                        <p className="text-sm font-mono text-[var(--text-secondary)] mb-4">₹{product.discount_price.substr(1)}</p>
-                        <Link to={`/product/${product.product_id}`} onClick={onClose} className="block w-full">
-                          <button className="w-full text-xs uppercase font-bold tracking-widest border border-[var(--border-color)] py-2 hover:bg-[var(--text-primary)] hover:text-[var(--bg-primary)] hover:border-[var(--text-primary)] transition-all flex items-center justify-center gap-2">
-                            View <ArrowRight size={14} />
-                          </button>
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+{/* Product Recommendations */}
+{msg.products && msg.products.length > 0 && (
+  <div className={`flex flex-wrap gap-4 mt-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+    {msg.products.slice(0, 4).map(product => (
+      <div key={product.product_id} className="w-44 sm:w-52 border-2 border-[var(--border-color)] bg-[var(--bg-primary)] group hover:border-[var(--text-primary)] transition-colors text-left overflow-hidden">
+        <div className="aspect-square relative overflow-hidden bg-[var(--bg-secondary)] border-b-2 border-[var(--border-color)]">
+<img
+              src={product.image}
+              alt={product.name}
+              className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+        </div>
+        <div className="p-3 space-y-2">
+          <h4 className="text-xs font-bold uppercase tracking-wider line-clamp-2 leading-tight">{product.name}</h4>
+          <p className="text-sm font-bold text-[var(--text-primary)]">{product.discount_price || product.actual_price || 'N/A'}</p>
+          <Link to={`/product/${product.product_id}`} onClick={onClose} className="block w-full">
+            <button className="w-full text-xs uppercase font-bold tracking-widest border border-[var(--border-color)] py-1.5 hover:bg-[var(--text-primary)] hover:text-[var(--bg-primary)] hover:border-[var(--text-primary)] transition-all flex items-center justify-center gap-1">
+              View <ArrowRight size={12} />
+            </button>
+          </Link>
+        </div>
+      </div>
+    ))}
+  </div>
+)}
             </div>
           </div>
         ))}
