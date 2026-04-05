@@ -37,6 +37,7 @@ ALGORITHM = "HS256"
 security = HTTPBearer()
 
 users_db = {}
+orders_db = {}
 
 
 def create_token(email: str) -> str:
@@ -89,6 +90,10 @@ class AuthRequest(BaseModel):
     email: str
     password: str
 
+class OrderRequest(BaseModel):
+    product_ids: list[str]
+    total_price: float
+
 
 @app.post("/api/auth/register")
 async def register(req: AuthRequest):
@@ -116,6 +121,35 @@ async def login(req: AuthRequest):
 @app.get("/api/auth/me")
 async def me(email: str = Depends(verify_token)):
     return {"email": email}
+
+
+@app.post("/api/orders")
+async def create_order(req: OrderRequest, email: str = Depends(verify_token)):
+    order_id = f"order_{len(orders_db) + 1}"
+    orders_db[order_id] = {
+        "order_id": order_id,
+        "user_email": email,
+        "product_ids": req.product_ids,
+        "total_price": req.total_price,
+        "status": "pending"
+    }
+    return orders_db[order_id]
+
+
+@app.get("/api/orders/{order_id}")
+async def get_order(order_id: str, email: str = Depends(verify_token)):
+    if order_id not in orders_db:
+        raise HTTPException(status_code=404, detail="Order not found")
+    order = orders_db[order_id]
+    if order["user_email"] != email:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return order
+
+
+@app.get("/api/orders")
+async def list_orders(email: str = Depends(verify_token)):
+    user_orders = [o for o in orders_db.values() if o["user_email"] == email]
+    return user_orders
 
 
 mistral_client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
