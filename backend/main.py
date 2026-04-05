@@ -13,27 +13,63 @@ import jwt
 import datetime
 from mistralai import Mistral
 
+# Load env
 dotenv.load_dotenv()
 
 app = FastAPI()
 
-# CORS middleware
+print("🚀 Starting FastAPI app...")
+
+# ------------------ CORS ------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_URL")],
+    allow_origins=[os.getenv("FRONTEND_URL", "*")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-model = SentenceTransformer('all-MiniLM-L6-v2')
-index = faiss.read_index('data/products.index')
-df = pd.read_json('data/products.json')
-df = df.replace({np.nan: None})
+# ------------------ Globals (lazy load) ------------------
+model = None
+index = None
+df = None
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# ------------------ Loaders ------------------
+def load_model():
+    global model
+    if model is None:
+        print("📦 Loading embedding model...")
+        model = SentenceTransformer("all-MiniLM-L6-v2")
+    return model
+
+
+def load_data():
+    global index, df
+    if index is None or df is None:
+        try:
+            print("📂 Loading FAISS + dataset...")
+
+            index_path = os.path.join(BASE_DIR, "data/products.index")
+            json_path = os.path.join(BASE_DIR, "data/products.json")
+
+            index = faiss.read_index(index_path)
+            df = pd.read_json(json_path)
+            df = df.replace({np.nan: None})
+
+            print("✅ Data loaded successfully")
+
+        except Exception as e:
+            print("❌ DATA LOAD ERROR:", e)
+            raise RuntimeError(f"Data loading failed: {e}")
+
+    return index, df
+
+
+# ------------------ Auth ------------------
 SECRET_KEY = os.getenv("JWT_SECRET", "shopsync-secret-key")
 ALGORITHM = "HS256"
-
 security = HTTPBearer()
 
 users_db = {}
@@ -59,49 +95,65 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+# ------------------ Schemas ------------------
 class ChatRequest(BaseModel):
     message: str
     history: list = []
 
-
-@app.post("/api/recommend")
-async def recommend(
-    req: ChatRequest,
-    k: int = 5
-):
-    query_vector = model.encode([req.message])
-    distances, indices = index.search(np.array(query_vector, dtype=np.float32), k)
-    recommended = df.iloc[indices[0]].to_dict(orient='records')[1:]
-    return {
-        "reply": f"Based on your request '{req.message}', here are the top matches from our catalog.",
-        "products": recommended
-    }
-
-@app.get("/api/products")
-async def get_products():
-    return df.to_dict(orient='records')
-
-@app.get("/api/product/{id}")
-async def get_product(
-    id: str
-):
-    product = df[df["product_id"] == id].to_dict(orient='records')[0]
-    return product
-    
 
 class AuthRequest(BaseModel):
     email: str
     password: str
 
 
+# ------------------ Routes ------------------
+
+@app.get("/")
+def health():
+    return {"status": "running"}
+
+
+@app.post("/api/recommend")
+async def recommend(req: ChatRequest, k: int = 5):
+    index, df = load_data()
+    model = load_model()
+
+    query_vector = model.encode([req.message])
+    distances, indices = index.search(np.array(query_vector, dtype=np.float32), k)
+
+    recommended = df.iloc[indices[0]].to_dict(orient="records")[1:]
+
+    return {
+        "reply": f"Based on your request '{req.message}', here are top matches.",
+        "products": recommended,
+    }
+
+
+@app.get("/api/products")
+async def get_products():
+    _, df = load_data()
+    return df.to_dict(orient="records")
+
+
+@app.get("/api/product/{id}")
+async def get_product(id: str):
+    _, df = load_data()
+
+    product = df[df["product_id"] == id]
+    if product.empty:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    return product.to_dict(orient="records")[0]
+
+
 @app.post("/api/auth/register")
 async def register(req: AuthRequest):
     if req.email in users_db:
         raise HTTPException(status_code=400, detail="Email already registered")
+
     password_bytes = req.password.encode("utf-8")[:72]
-    users_db[req.email] = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode(
-        "utf-8"
-    )
+    users_db[req.email] = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode()
+
     token = create_token(req.email)
     return {"token": token, "email": req.email}
 
@@ -109,10 +161,12 @@ async def register(req: AuthRequest):
 @app.post("/api/auth/login")
 async def login(req: AuthRequest):
     password_bytes = req.password.encode("utf-8")[:72]
+
     if req.email not in users_db or not bcrypt.checkpw(
-        password_bytes, users_db[req.email].encode("utf-8")
+        password_bytes, users_db[req.email].encode()
     ):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
     token = create_token(req.email)
     return {"token": token, "email": req.email}
 
@@ -122,67 +176,44 @@ async def me(email: str = Depends(verify_token)):
     return {"email": email}
 
 
-mistral_client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
+# ------------------ Mistral ------------------
+mistral_client = None
+
+
+def get_mistral():
+    global mistral_client
+    if mistral_client is None:
+        print("🤖 Initializing Mistral client...")
+        mistral_client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
+    return mistral_client
 
 
 @app.post("/api/recommend/llm")
 async def recommend_llm(req: ChatRequest, k: int = 5):
-    conversation = []
-    if req.history:
-        for msg in req.history:
-            conversation.append(
-                {"role": msg.get("role", "user"), "content": msg.get("content", "")}
-            )
+    index, df = load_data()
+    model = load_model()
+    client = get_mistral()
+
+    conversation = req.history or []
     conversation.append({"role": "user", "content": req.message})
 
-    query_prompt = """Given the following conversation, extract the most relevant search query for finding products.
-Return ONLY the search query, nothing else. Make it concise (3-5 words) but descriptive.
-
-Conversation:
-"""
+    query_prompt = "Extract a 3-5 word product search query.\n\n"
     for msg in conversation:
         query_prompt += f"{msg['role']}: {msg['content']}\n"
-    query_prompt += "\nSearch query:"
 
-    query_response = mistral_client.chat.complete(
+    query_response = client.chat.complete(
         model="mistral-small-latest",
         messages=[{"role": "user", "content": query_prompt}],
     )
+
     search_query = query_response.choices[0].message.content.strip()
 
     query_vector = model.encode([search_query])
     distances, indices = index.search(np.array(query_vector, dtype=np.float32), k)
     products = df.iloc[indices[0]].to_dict(orient="records")
 
-    products_text = "\n".join(
-        [
-            f"- {p['name']}: {p.get('description', '')} ({p.get('discount_price') or p.get('actual_price', 'N/A')})"
-            for p in products
-        ]
-    )
-
-    response_prompt = f"""You are a helpful shopping assistant. Based on the user's request and chat history, recommend products from the catalog below.
-
-Chat History:
-"""
-    for msg in conversation:
-        response_prompt += f"{msg['role']}: {msg['content']}\n"
-
-    response_prompt += f"""
-User's latest request: {req.message}
-
-Available products:
-{products_text}
-
-Provide a personalized recommendation (2-3 sentences) mentioning specific products from the list above."""
-
-    final_response = mistral_client.chat.complete(
-        model="mistral-small-latest",
-        messages=[{"role": "user", "content": response_prompt}],
-    )
-
     return {
-        "reply": final_response.choices[0].message.content,
+        "reply": f"Here are some recommendations for '{search_query}'",
         "products": products,
         "search_query": search_query,
     }
