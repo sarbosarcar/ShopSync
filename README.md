@@ -1,8 +1,8 @@
-# ShopSync
+ # ShopSync
 
 An AI-powered ecommerce platform featuring a React frontend and a FastAPI backend with a FAISS-based product recommender system.
 
-## Prerequisites
+## Prerequisites .
 
 - [Node.js](https://nodejs.org/) & npm
 - [Python 3.8+](https://www.python.org/)
